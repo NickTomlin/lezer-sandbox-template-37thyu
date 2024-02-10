@@ -1,0 +1,55 @@
+// Very crude grammar for splitting expressions from regular text
+
+@top Document { element }
+
+element {
+  scalar | Mapping
+}
+
+Mapping {
+  Key spaces? scalar lineEnd |
+  Key spaces? MultiLine
+}
+
+MultiLine {
+  MultiLineKey newline Indent (MultiLineValue (newline | eof))* (Dedent | eof)
+}
+
+lineEnd { newline | eof }
+  newline { "\n" }
+
+@context trackIndent from "./tokens.js"
+
+@external tokens Indentation from "./tokens.js" {
+  Indent
+  Dedent
+  blankLineStart
+}
+
+
+scalar {
+  String | Plain
+}
+
+@tokens {
+    spaces { $[ \t]+ }
+  keyChar { ![|&*:>\n#\t"' ]* }
+  Key {
+    (keyChar | ":" )+ ":" |
+    String ":"
+  }
+    Plain { ![\n#]+ }
+  eof { @eof }
+
+  String {
+    // https://github.com/lezer-parser/python/blob/main/src/python.grammar#L304
+    "'" (!['\\\n\r] | "\\" _)* "'" | '"' (!["\\\n\r] | "\\" _)* '"'
+  }
+
+  MultiLineKey { "|" | ">" | ">-" | "|-" }
+  // unlike Plain, this can accept anything
+  MultiLineValue { ![\n#]+ }
+@precedence {MultiLineValue, Comment, Alias, Plain}
+  @precedence {MultiLineKey, SequenceIndicator, DocStart, Key, String, spaces, Boolean, Number, Anchor, Plain}
+
+}
